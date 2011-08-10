@@ -67,6 +67,9 @@ import com.sun.jna.Structure.FFIType;
  * probably install the native library in an accessible location and configure 
  * your system accordingly, rather than relying on JNA to extract the library 
  * from its own jar file.<p/>
+ * To avoid the automatic unpacking (in situations where you want to force a
+ * failure if the JNA native library is not properly installed on the system),
+ * set the system property <code>jna.nounpack=true</code>.
  * NOTE: all native functions are provided within this class to ensure that
  * all other JNA-provided classes and objects are GC'd and/or
  * finalized/disposed before this class is disposed and/or removed from
@@ -80,8 +83,8 @@ public final class Native {
 
     private static final String VERSION = "3.3.0";
 
+    // Used by tests, do not remove
     private static String nativeLibraryPath = null;
-    private static boolean unpacked;
     private static Map typeMappers = new WeakHashMap();
     private static Map alignments = new WeakHashMap();
     private static Map options = new WeakHashMap();
@@ -125,9 +128,7 @@ public final class Native {
         }
     }
     
-    /** Ensure our unpacked native library gets cleaned up if this class gets
-        garbage-collected.
-    */
+    /** Force a dispose when this class is GC'd. */
     private static final Object finalizer = new Object() {
         protected void finalize() {
             dispose();
@@ -137,31 +138,23 @@ public final class Native {
     /** Properly dispose of JNA functionality. */
     private static void dispose() {
         NativeLibrary.disposeAll();
-        deleteNativeLibrary();
+        nativeLibraryPath = null;
     }
 
     /** Remove any automatically unpacked native library.
 
         This will fail on windows, which disallows removal of any file that is
-        still in use. so an alternative is required in that case.
+        still in use, so an alternative is required in that case.  Mark
+        the file that could not be deleted, and attempt to delete any
+        temporaries on next startup.
 
         Do NOT force the class loader to unload the native library, since
         that introduces issues with cleaning up any extant JNA bits
         (e.g. Memory) which may still need use of the library before shutdown.
      */
-    private static boolean deleteNativeLibrary() {
-        String path = nativeLibraryPath;
-        if (path == null || !unpacked) return true;
+    private static boolean deleteNativeLibrary(String path) {
         File flib = new File(path);
         if (flib.delete()) {
-            nativeLibraryPath = null;
-            unpacked = false;
-
-            // If finalization-on-exit is set, the marker file may have been
-            // created by the shutdown hook (MarkTemporaryFile) just prior
-            // to the finalization. Ensure the marker file is deleted.
-            File marker = new File(flib.getParentFile(), flib.getName() + ".x");
-            marker.delete();
             return true;
         }
 
@@ -738,6 +731,7 @@ public final class Native {
         String name = System.getProperty("os.name");
         String resourceName = getNativeLibraryResourcePath(Platform.getOSType(), arch, name) + "/" + libname;
         URL url = Native.class.getResource(resourceName);
+        boolean unpacked = false;
                 
         // Add an ugly hack for OpenJDK (soylatte) - JNI libs use the usual
         // .dylib extension 
@@ -777,20 +771,13 @@ public final class Native {
                 File dir = getTempDir();
                 lib = File.createTempFile("jna", Platform.isWindows()?".dll":null, dir);
                 lib.deleteOnExit();
-
-                // Ensure this file is marked for deletion on Windows.
-                ClassLoader cl = (com.sun.jna.Native.class).getClassLoader();
-                if (Platform.isWindows()
-                    && (cl == null || cl.equals(ClassLoader.getSystemClassLoader()))) {
-                    Runtime.getRuntime().addShutdownHook(new MarkTemporaryFile(lib));
-                }
-
                 fos = new FileOutputStream(lib);
                 int count;
                 byte[] buf = new byte[1024];
                 while ((count = is.read(buf, 0, buf.length)) > 0) {
                     fos.write(buf, 0, count);
                 }
+                unpacked = true;
             }
             catch(IOException e) {
                 throw new Error("Failed to create temporary file for jnidispatch library: " + e);
@@ -801,38 +788,17 @@ public final class Native {
                     try { fos.close(); } catch(IOException e) { }
                 }
             }
-            unpacked = true;
         }
         System.load(lib.getAbsolutePath());
         nativeLibraryPath = lib.getAbsolutePath();
-    }
-
-    /**
-     * Helper class used in a shutdown hook to ensure that the temporary
-     * stub DLL is marked for deletion.  This is only called on Windows
-     * platforms and only creates the marker file if the temporary (DLL)
-     * exists when the shutdown hook runs.
-     */
-    public static class MarkTemporaryFile extends Thread
-    {
-        private File tlib;
-
-        public MarkTemporaryFile( File lib )
-        {
-            tlib = lib;
-        }
-
-        public void run() {
-            try {
-                if (tlib.exists()) {
-                   File marker = new File(tlib.getParentFile(), tlib.getName() + ".x");
-                   marker.createNewFile();
-                }
-            }
-            catch(IOException e) { e.printStackTrace(); }
+        // Attempt to delete immediately once jnidispatch is successfully
+        // loaded.  This avoids the complexity of trying to do so on "exit",
+        // which point can vary under different circumstances (native
+        // compilation, dynamically loaded modules, normal application, etc).
+        if (unpacked) {
+            deleteNativeLibrary(lib.getAbsolutePath());
         }
     }
-
 
     /**
      * Initialize field and method IDs for native methods of this class. 

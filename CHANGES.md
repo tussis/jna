@@ -3,8 +3,18 @@ Release 3.3.x
 
 Features
 --------
-* linux/ppc 32-bit support
+* Disable automatic jnidispatch unpacking with jna.nounpack=true (Ricq)
+* linux/ppc 32-bit support (Fritiof Hedman)
 * linux multi-arch support (kohsuke)
+* Add to `platform.unix.x11`: `XGrabKey`, `XUngrabKey`, `XSetErrorHandler`
+* Add to `platform.mac.Carbon`: `GetEventDispatcherTarget`, `InstallEventHandler`, `RegisterEventHotKey`, `GetEventParameter`, `RemoveEventHandler`, `UnregisterEventHotKey`
+* Add to `platform.win32.Kernel32`: `CopyFile`, `MoveFile`, `MoveFileEx`, `CreateProcess`, `SetEnvironmentVariables`, `GetFileTime`, `SetFileTime`, `SetFileAttributes`, `DeviceIoControl`, `GetDiskFreeSpaceEx`, `CreateToolhelp32Snapshot`, `Process32First`, `Process32Next`.
+* Add to `platform.win32.Msi`: `MsiGetComponentPath`, `MsiLocateComponent`, `MsiGetProductCode`, `MsiEnumComponents`.
+* Add to `platform.win32.User32`: `RegisterHotKey`, `UnregisterHotKey`
+* Add to `platform.win32.SetupApi`: `SetupDiGetClassDevs`, `SetupDiDestroyDeviceInfoList`, `SetupDiEnumDeviceInterfaces`, `SetupDiGetDeviceInterfaceDetail`, `SetupDiGetDeviceRegistryProperty`.
+* Add `platform.win32.Shell32.ShellExecute`.
+* Add to `platform.win32.User32`: `SetParent`, `IsWindowVisible`, `MoveWindow`, `SetWindowPos`, `AttachInputThread`, `SetForegroundWindow`, `GetForegroundWindow`, `SetFocus`, `SendInput`, `WaitForInputIdle`, `InvalidateRect`, `RedrawWindow`, `GetWindow`, `UpdateWindow`, `ShowWindow`, `CloseWindow`.
+* Add to `platform.win32.Version`: `GetFileVersionInfoSize`, `GetFileVersionInfo`, `VerQueryValue`.
 
 Bug Fixes
 --------
@@ -30,8 +40,6 @@ Features
 * `platform.win32.Advapi32Util.registryCreateKey` returns `true` if key was created, `false` if it already exists.
 * Add `REG_BINARY`, `REG_EXPAND_SZ` and `REG_MULTI_SZ` support to `platform.win32.Advapi32Util` registry functions.
 * Reduce JNI crossings in a number of native methods, moving object creation out into pure Java code.
-* Add several functions to `platform.win32.Kernel32` and `platform.win32.User32`.
-* Added `platform.win32.Msi`, `platform.win32.SetupApi` and `platform.win32.Version`.
 
 Bug Fixes
 ---------
