@@ -710,7 +710,8 @@ public final class Native {
            plibs = new String[]{ libName };
         }
 
-        for (String plibname : plibs) {
+        for (int i = 0; i < plibs.length; i++ ) {
+            String plibname = plibs[i];
             try {
                 System.loadLibrary(plibname);
                 nativeLibraryPath = plibname;
