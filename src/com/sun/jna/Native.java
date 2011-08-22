@@ -710,6 +710,7 @@ public final class Native {
            plibs = new String[]{ libName };
         }
 
+        UnsatisfiedLinkError efail = null;
         for (int i = 0; i < plibs.length; i++ ) {
             String plibname = plibs[i];
             try {
@@ -717,7 +718,12 @@ public final class Native {
                 nativeLibraryPath = plibname;
                 return;
             } catch(UnsatisfiedLinkError e) {
+                efail = e;
             }
+        }
+
+        if (Boolean.getBoolean("jna.nounpack")) {
+            throw efail;
         }
         loadNativeLibraryFromJar();
     }
